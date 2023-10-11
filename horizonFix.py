@@ -10,6 +10,7 @@ import os
 from PIL import Image, ExifTags
 
 from datetime import datetime
+from tqdm import tqdm
 
 #last line of the image before timestamp
 imgend = 2299
@@ -92,12 +93,14 @@ def getDateTime(imdir):
 
 if __name__ == '__main__':
     rotation_save_dir = Path(r"C:\Users\Daniel\Documents\sel\horizon_rotation_images\goldenStandardRotated")
+    rotation_save_dir = Path(r"D:\ITEX-AON_Phenocam_Images\WingScapes_PhenoCam_2011-2015\Utqiagvik_MISP_PhenoCam\2014_2_rectified")
+    
     green_save_dir = Path(r"C:\Users\Daniel\Documents\sel\horizon_rotation_images\green_channel")
     horizon_save_dir = Path(r"C:\Users\Daniel\Documents\sel\horizon_rotation_images\horizon_detection")
 
     data_dir = Path(r"C:\Users\Daniel\Documents\sel\Example_Images_For_Rectification")
     data_dir = Path(r"C:\Users\Daniel\Documents\sel\horizon_rotation_images\goldenStandards")
-    data_dir = Path(r"D:\ITEX-AON_Phenocam_Images\WingScapes_PhenoCam_2011-2015\Utqiagvik_MISP_PhenoCam")
+    data_dir = Path(r"D:\ITEX-AON_Phenocam_Images\WingScapes_PhenoCam_2011-2015\Utqiagvik_MISP_PhenoCam\2014_2")
 
     # input_img_paths = sorted(
     # [
@@ -108,14 +111,13 @@ if __name__ == '__main__':
     # )
     
     files = list(data_dir.glob("**/*"))
-    input_img_paths = [x for x in files if x.is_file()]
+    input_img_paths = [x for x in files if (x.is_file() and "JPG" in x.suffix) ]
 
 
     
-    print(input_img_paths)
     
     i = 1
-    for imdir in input_img_paths[50:51]:
+    for imdir in tqdm(input_img_paths):
         # img = cv2.imread(r"C:\Users\Daniel\Documents\sel\Example_Images_For_Rectification\WSBC0029.JPG",cv2.IMREAD_GRAYSCALE)
         #img = cv2.imread(imdir,cv2.IMREAD_GRAYSCALE)
         name = Path(imdir).stem
@@ -131,19 +133,20 @@ if __name__ == '__main__':
         grnimg[2299:,:] = timestampmask
         
         x,y,climg = detect_horizon_line(grnimg)
+        del grnimg
         a, b = np.polyfit(x, y, 1)
 
-        plt.figure(i)
+        #plt.figure(i)
         
-        plt.plot(x,y,"bo")
+        #plt.plot(x,y,"bo")
         liny = a*x+b
-        plt.plot(x,liny)
+        #plt.plot(x,liny)
 
         #angle = np.arctan((max(liny)-min(liny))/max(x))*180/np.pi#np.arctan(-a)*2*np.pi
         angle = np.arctan(a)*180/np.pi
-        print("angle",angle)
+        #print("angle",angle)
         
-        plt.imshow(climg)
+        #plt.imshow(climg)
         horzname = name + "_" + "horizon" + ".jpg"
         # cv2.imwrite(str(horizon_save_dir/horzname),climg)
         #plt.savefig(str(horizon_save_dir/horzname))
@@ -160,11 +163,12 @@ if __name__ == '__main__':
         rot_img = warp(img, rot_matrix)
         rot_img = warp(rot_img, vert_matrix)
         
-        plt.figure(i+1)
+        #plt.figure(i+1)
         i+=2
-        plt.imshow(rot_img)
+        #plt.imshow(rot_img)
         
-        rotname = name + "_" + str(round(angle,4)) +"_" + timestamp.isoformat() + "_" + ".jpg"
-        #cv2.imwrite(str(rotation_save_dir/rotname),rot_img)
+        rotname = name + "_" + str(round(angle,4)) +"_" + timestamp.strftime("%Y%m%d%H%M%S") + ".jpg"
+        cv2.imwrite(str(rotation_save_dir/rotname),rot_img)
+        del rot_img
         
         # plt.imsave("")
