@@ -14,8 +14,11 @@ from tqdm import tqdm
 
 #last line of the image before timestamp
 imgend = 2299
-goldB = 589.2652532259266
-goldA = 0.006334331804510105
+#goldB = 589.2652532259266
+goldB = 582.3542738867756
+
+#goldA = 0.006334331804510105
+goldA = -0.047456609746488194
 
 
 
@@ -92,15 +95,16 @@ def getDateTime(imdir):
 
 
 if __name__ == '__main__':
-    rotation_save_dir = Path(r"C:\Users\Daniel\Documents\sel\horizon_rotation_images\goldenStandardRotated")
-    rotation_save_dir = Path(r"D:\ITEX-AON_Phenocam_Images\WingScapes_PhenoCam_2011-2015\Utqiagvik_MISP_PhenoCam\2014_2_rectified")
+    rotation_save_dir = Path(r"C:\Users\Daniel\Documents\sel\horizon_rotation_images\goldenStandardRotated_nostamp")
+    #rotation_save_dir = Path(r"D:\ITEX-AON_Phenocam_Images\WingScapes_PhenoCam_2011-2015\Utqiagvik_MISP_PhenoCam\2014_2_rectified")
+    #rotation_save_dir = Path(r"C:\Users\Daniel\Documents\sel\horizon_rotation_images\rectified_images_nostamp")
     
     green_save_dir = Path(r"C:\Users\Daniel\Documents\sel\horizon_rotation_images\green_channel")
     horizon_save_dir = Path(r"C:\Users\Daniel\Documents\sel\horizon_rotation_images\horizon_detection")
 
-    data_dir = Path(r"C:\Users\Daniel\Documents\sel\Example_Images_For_Rectification")
+    #data_dir = Path(r"C:\Users\Daniel\Documents\sel\Example_Images_For_Rectification")
     data_dir = Path(r"C:\Users\Daniel\Documents\sel\horizon_rotation_images\goldenStandards")
-    data_dir = Path(r"D:\ITEX-AON_Phenocam_Images\WingScapes_PhenoCam_2011-2015\Utqiagvik_MISP_PhenoCam\2014_2")
+    #data_dir = Path(r"D:\ITEX-AON_Phenocam_Images\WingScapes_PhenoCam_2011-2015\Utqiagvik_MISP_PhenoCam\2014_2")
 
     # input_img_paths = sorted(
     # [
@@ -111,7 +115,7 @@ if __name__ == '__main__':
     # )
     
     files = list(data_dir.glob("**/*"))
-    input_img_paths = [x for x in files if (x.is_file() and "JPG" in x.suffix) ]
+    input_img_paths = [x for x in files if (x.is_file() and "jpg" in x.suffix.lower()) ]
 
 
     
@@ -122,6 +126,9 @@ if __name__ == '__main__':
         #img = cv2.imread(imdir,cv2.IMREAD_GRAYSCALE)
         name = Path(imdir).stem
         img = cv2.imread(str(imdir))
+        #remove timestamp
+        img[2299:,...] = 0
+        
         timestamp = getDateTime(str(imdir))
         
         grnimg = img[:,:,0]
