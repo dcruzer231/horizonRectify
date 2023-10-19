@@ -79,7 +79,7 @@ def getVerticalShiftMatrix(img,a,b,goldA,goldB):
     goldHorizonHeight = goldA*center[1] + goldB
     
     diff = goldHorizonHeight - horizonHeight
-    return np.array([[1,0,0],
+    return diff,np.array([[1,0,0],
                      [0,1,diff]])
 
     
@@ -230,20 +230,53 @@ def display_control_lines(im0,im1,pts0=np.array([[0,0]]),pts1=np.array([[0,0]]),
     for i in range(pts0.shape[0]):
         ax.plot([pts0[i,0],pts2[i,0]],[pts0[i,1],pts2[i,1]],color=clr_str[i%len(clr_str)],linewidth=1.0)
     fig.suptitle('Point correpondences', fontsize=16)
+
+def getfilestructure(path):
+    return str(path.parent).replace(str(data_dir),"")[1:] #indexing to remove starting /
+
+def slideshow(path, wait=2):
+    from time import sleep
+    for imgdir in path:
+        img = cv2.imread(str(imgdir))   
+        imS = cv2.resize(img (960, 540))                # Resize image
+        cv2.imshow("image",imS[:,:,::-1])
+        cv2.waitKey(3000)
     
+def writetocsv(filename,row):
+    import csv
+    with open(filename, '+a') as f_object:
+ 
+        # Pass this file object to csv.writer()
+        # and get a writer object
+        writer_object = csv.writer(f_object)
+     
+        # Pass the list as an argument into
+        # the writerow()
+        writer_object.writerow(row)
+     
+        # Close the file object
+        f_object.close()
 
 if __name__ == '__main__':
+    #for images with just rotation y-shift
     rotation_save_dir = Path(r"C:\Users\Daniel\Documents\sel\horizon_rotation_images\goldenStandardRotated")
     rotation_save_dir = Path(r"D:\ITEX-AON_Phenocam_Images\WingScapes_PhenoCam_2011-2015\Utqiagvik_MISP_PhenoCam\2014_2_rectified")
     rotation_save_dir = Path(r"C:\Users\Daniel\Documents\sel\horizon_rotation_images\registered_images")
+    
+    rotation_save_dir = Path(r"/media/dan/TOSHIBA EXT/ITEX-AON_Phenocam_Images/WingScapes_PhenoCam_2011-2015/Utqiagvik_MISP_PhenoCam_rotated/")
+
+    #for iamges with rotation, y-shift, x-shift
+    registered_save_dir = Path(r"/media/dan/TOSHIBA EXT/ITEX-AON_Phenocam_Images/WingScapes_PhenoCam_2011-2015/Utqiagvik_MISP_PhenoCam_rotated_shifted/")
+    
     
     green_save_dir = Path(r"C:\Users\Daniel\Documents\sel\horizon_rotation_images\green_channel")
     horizon_save_dir = Path(r"C:\Users\Daniel\Documents\sel\horizon_rotation_images\horizon_detection")
 
     data_dir = Path(r"C:\Users\Daniel\Documents\sel\Example_Images_For_Rectification")
+    
     #data_dir = Path(r"C:\Users\Daniel\Documents\sel\horizon_rotation_images\goldenStandards")
     #data_dir = Path(r"D:\ITEX-AON_Phenocam_Images\WingScapes_PhenoCam_2011-2015\Utqiagvik_MISP_PhenoCam\2014_2")
-
+    data_dir = Path(r"/media/dan/TOSHIBA EXT/ITEX-AON_Phenocam_Images/WingScapes_PhenoCam_2011-2015/Utqiagvik_MISP_PhenoCam/")
     # input_img_paths = sorted(
     # [
     #     os.path.join(data_dir, fname)
@@ -258,6 +291,8 @@ if __name__ == '__main__':
 
     
     gsDir = Path(r"C:\Users\Daniel\Documents\sel\horizon_rotation_images\goldenStandardRotated_nostamp\goldenStandard_-2.717_20130810161302.jpg")
+    gsDir = Path(r"/home/dan/horizonRectify/goldenStandard/goldenStandard_-2.717_20130810161302.jpg")
+
     gsimg = cv2.imread(str(gsDir))
     
     i = 1
@@ -303,7 +338,7 @@ if __name__ == '__main__':
         #cv2.imwrite(str(green_save_dir/grnname),grnimg)
         
         rot_matrix = getRotationMatrix(img,angle)
-        vert_matrix = getVerticalShiftMatrix(img,a,b,goldA,goldB)
+        ydiff,vert_matrix = getVerticalShiftMatrix(img,a,b,goldA,goldB)
         matrix = vert_matrix * rot_matrix  
 
 
@@ -340,8 +375,26 @@ if __name__ == '__main__':
                          [0,1,0]],dtype=np.float32)
         rot_shift_img = warp(rot_img,shift_mat)
         
+        rot_savepath = rotation_save_dir / getfilestructure(imdir)
+        rot_savepath /= rotname
+        
+        reg_savepath = registered_save_dir / getfilestructure(imdir)
+        reg_savepath /= rotname
+        
+
+        row = [rotname,timestamp.strftime("%Y%m%d%H%M%S"),angle,ydiff,lateraldiff]
+        #writetocsv("image_rectify_stats.csv",row)
+        
+        #os.makedirs(rot_savepath.parent,exist_ok=True)
+        #os.makedirs(reg_savepath.parent,exist_ok=True)
+        
+        #cv2.imwrite(str(rot_savepath),rot_img)
+        #cv2.imwrite(str(reg_savepath),rot_shift_img)
+
+
+        
         #display_control_lines(gsimg[...,::-1],rot_img[...,::-1],key1, key2)
-        cv2.imwrite(str(rotation_save_dir/rotname),rot_shift_img)
+        #cv2.imwrite(str(rotation_save_dir/rotname),rot_shift_img)
 
     #plt.figure(2)
     #plt.imshow(gsimg)
