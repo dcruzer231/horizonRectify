@@ -93,11 +93,31 @@ def getDateTime(imdir):
     timestamp = datetime.strptime(strdatetime,"%Y:%m:%d %H:%M:%S")
     return timestamp
 
+def getfilestructure(path):
+    return str(path.parent).replace(str(data_dir),"")[1:] #indexing to remove starting /
+
+def writetocsv(filename,row):
+    import csv
+    with open(filename, '+a') as f_object:
+ 
+        # Pass this file object to csv.writer()
+        # and get a writer object
+        writer_object = csv.writer(f_object)
+     
+        # Pass the list as an argument into
+        # the writerow()
+        writer_object.writerow(row)
+     
+        # Close the file object
+        f_object.close()
+
 
 if __name__ == '__main__':
     rotation_save_dir = Path(r"C:\Users\Daniel\Documents\sel\horizon_rotation_images\goldenStandardRotated_nostamp")
     #rotation_save_dir = Path(r"D:\ITEX-AON_Phenocam_Images\WingScapes_PhenoCam_2011-2015\Utqiagvik_MISP_PhenoCam\2014_2_rectified")
     #rotation_save_dir = Path(r"C:\Users\Daniel\Documents\sel\horizon_rotation_images\rectified_images_nostamp")
+    rotation_save_dir = Path(r"/media/dan/ITEX-AON PhenoCam Image MASTER/ITEX-AON_Phenocam_Images/WingScapes_PhenoCam_2011-2015/utqiagvik_MISP_PhenoCam_level/")
+
     
     green_save_dir = Path(r"C:\Users\Daniel\Documents\sel\horizon_rotation_images\green_channel")
     horizon_save_dir = Path(r"C:\Users\Daniel\Documents\sel\horizon_rotation_images\horizon_detection")
@@ -105,6 +125,7 @@ if __name__ == '__main__':
     #data_dir = Path(r"C:\Users\Daniel\Documents\sel\Example_Images_For_Rectification")
     data_dir = Path(r"C:\Users\Daniel\Documents\sel\horizon_rotation_images\goldenStandards")
     #data_dir = Path(r"D:\ITEX-AON_Phenocam_Images\WingScapes_PhenoCam_2011-2015\Utqiagvik_MISP_PhenoCam\2014_2")
+    data_dir = Path(r"/media/dan/ITEX-AON PhenoCam Image MASTER/ITEX-AON_Phenocam_Images/WingScapes_PhenoCam_2011-2015/Utqiagvik_MISP_PhenoCam/")
 
     # input_img_paths = sorted(
     # [
@@ -168,14 +189,22 @@ if __name__ == '__main__':
 
 
         rot_img = warp(img, rot_matrix)
-        rot_img = warp(rot_img, vert_matrix)
+        # rot_img = warp(rot_img, vert_matrix)
         
         #plt.figure(i+1)
-        i+=2
+        # i+=2
         #plt.imshow(rot_img)
         
-        rotname = name + "_" + str(round(angle,4)) +"_" + timestamp.strftime("%Y%m%d%H%M%S") + ".jpg"
-        cv2.imwrite(str(rotation_save_dir/rotname),rot_img)
+        #shutil.copy2(imdir,rotation_save_dir/newname)
+        finalDir = (rotation_save_dir / getfilestructure(imdir))
+        os.makedirs(finalDir,exist_ok=True)
+
+
+        rotname = timestamp.strftime("%Y%m%d%H%M%S") + "_UTQ_" + name + ".jpg"
+
+        cv2.imwrite(str(finalDir.parent/rotname),rot_img)
+        row = [rotname,timestamp.strftime("%Y%m%d%H%M%S"),angle]
+        writetocsv("UTQ_level_stats.csv",row)
         del rot_img
         
         # plt.imsave("")
