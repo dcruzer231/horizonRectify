@@ -1,4 +1,3 @@
-"""Utilities for finding the horizon line"""
 
 import cv2
 
@@ -21,7 +20,7 @@ goldB = 582.3542738867756
 goldA = -0.047456609746488194
 
 
-
+#inspired by method developed by Sean Sall origin: https://github.com/sallamander/horizon-detection/blob/master/utils.py
 def detect_horizon_line(image_grayscaled):
     """Detect the horizon's starting and ending points in the given image
 
@@ -54,23 +53,25 @@ def detect_horizon_line(image_grayscaled):
     horizon_y1 = max(np.where(image_closed[:, horizon_x1] == 0)[0])
     horizon_y2 = max(np.where(image_closed[:, horizon_x2] == 0)[0])
 
+    #get x coordinates of the threshold in 10 pixel steps
     x = np.arange(horizon_x1,horizon_x2,10)
     y = []
+    #Find y coordinates that land on the edge of the threshold
     for i in x:
         y.append(min(np.where(image_closed[:, i] == 255)[0]))
-    #cv2.imshow("hi",image_closed)
-    #return image_closed
     return x,y,image_closed
-    return horizon_x1, horizon_x2, horizon_y1, horizon_y2
 
+#warps image given a matrix
 def warp(img,matrix):
     return cv2.warpAffine(img, matrix, (img.shape[1], img.shape[0]))
 
+#finds rotation matrix based off of angle in degrees
 def getRotationMatrix(img,angle):
     width,height = img.shape[:2]
     center = (width//2, height//2)
     return cv2.getRotationMatrix2D(center=center, angle=angle, scale=1)
 
+#finds matrix for vertical shifting to align to golden standard. Uses the line of best fit from the golden standard
 def getVerticalShiftMatrix(img,a,b,goldA,goldB):
     width,height = img.shape[:2]
     center = (width//2, height//2)
@@ -83,8 +84,7 @@ def getVerticalShiftMatrix(img,a,b,goldA,goldB):
                      [0,1,diff]])
 
     
-
-#datetime.isoformat()
+#retrieves data time from exif
 def getDateTime(imdir):
     pimg = Image.open(str(imdir))
     img_exif = pimg.getexif()
@@ -93,22 +93,15 @@ def getDateTime(imdir):
     timestamp = datetime.strptime(strdatetime,"%Y:%m:%d %H:%M:%S")
     return timestamp
 
+#returns directory structure with parent directories removed
 def getfilestructure(path):
     return str(path.parent).replace(str(data_dir),"")[1:] #indexing to remove starting /
 
 def writetocsv(filename,row):
     import csv
     with open(filename, '+a') as f_object:
- 
-        # Pass this file object to csv.writer()
-        # and get a writer object
         writer_object = csv.writer(f_object)
-     
-        # Pass the list as an argument into
-        # the writerow()
         writer_object.writerow(row)
-     
-        # Close the file object
         f_object.close()
 
 
@@ -127,13 +120,6 @@ if __name__ == '__main__':
     #data_dir = Path(r"D:\ITEX-AON_Phenocam_Images\WingScapes_PhenoCam_2011-2015\Utqiagvik_MISP_PhenoCam\2014_2")
     data_dir = Path(r"/media/dan/ITEX-AON PhenoCam Image MASTER/ITEX-AON_Phenocam_Images/WingScapes_PhenoCam_2011-2015/Utqiagvik_MISP_PhenoCam/")
 
-    # input_img_paths = sorted(
-    # [
-    #     os.path.join(data_dir, fname)
-    #     for fname in os.listdir(data_dir)
-    #     if fname.endswith(".JPG") or fname.endswith(".jpg")
-    # ]
-    # )
     
     files = list(data_dir.glob("**/*"))
     input_img_paths = [x for x in files if (x.is_file() and "jpg" in x.suffix.lower()) ]
@@ -143,36 +129,37 @@ if __name__ == '__main__':
     
     i = 1
     for imdir in tqdm(input_img_paths):
-        # img = cv2.imread(r"C:\Users\Daniel\Documents\sel\Example_Images_For_Rectification\WSBC0029.JPG",cv2.IMREAD_GRAYSCALE)
-        #img = cv2.imread(imdir,cv2.IMREAD_GRAYSCALE)
         name = Path(imdir).stem
         img = cv2.imread(str(imdir))
+
         #remove timestamp
         img[2299:,...] = 0
         
         timestamp = getDateTime(str(imdir))
         
-        grnimg = img[:,:,0]
-        width,height = grnimg.shape[:]
+        #get only blue channel of the image
+        blueimg = img[:,:,0]
+        width,height = blueimg.shape[:]
 
-        
-        lastline = grnimg[imgend,:]
+        #broadcast the last line of image pixels down the empty timestamp square.  Pure black spaces may affect the thresholding. 
+        lastline = blueimg[imgend,:]
         timestampmask = np.broadcast_to(lastline,(width-imgend,lastline.shape[0]))
-        grnimg[2299:,:] = timestampmask
+        blueimg[2299:,:] = timestampmask
         
-        x,y,climg = detect_horizon_line(grnimg)
-        del grnimg
+        #x,y cordinates of set of evenly spaced points lying on the edge of the threshold and the binary thresholded image
+        x,y,climg = detect_horizon_line(blueimg)
+        del blueimg
+
+        #create a line of best fit on the points returns the a and b coefficient of the line formula y=ax+b
         a, b = np.polyfit(x, y, 1)
 
-        #plt.figure(i)
-        
-        #plt.plot(x,y,"bo")
         liny = a*x+b
+        #plt.figure(i)        
+        #plt.plot(x,y,"bo")
         #plt.plot(x,liny)
 
-        #angle = np.arctan((max(liny)-min(liny))/max(x))*180/np.pi#np.arctan(-a)*2*np.pi
+        #Use slope to find the angle of the horizon
         angle = np.arctan(a)*180/np.pi
-        #print("angle",angle)
         
         #plt.imshow(climg)
         horzname = name + "_" + "horizon" + ".jpg"
@@ -181,13 +168,16 @@ if __name__ == '__main__':
 
 
         grnname = name + "_" + "green" + ".jpg"
-        #cv2.imwrite(str(green_save_dir/grnname),grnimg)
+        #cv2.imwrite(str(green_save_dir/grnname),blueimg)
         
+        #get matrix to rotate image
         rot_matrix = getRotationMatrix(img,angle)
+        #get matrix to shift the image vertically
         vert_matrix = getVerticalShiftMatrix(img,a,b,goldA,goldB)
-        matrix = vert_matrix * rot_matrix  
+        # matrix = vert_matrix * rot_matrix  
 
 
+        #warp image on rotation matrix and then vertical shift matrix
         rot_img = warp(img, rot_matrix)
         # rot_img = warp(rot_img, vert_matrix)
         
@@ -195,7 +185,7 @@ if __name__ == '__main__':
         # i+=2
         #plt.imshow(rot_img)
         
-        #shutil.copy2(imdir,rotation_save_dir/newname)
+        #preserve folder structure of source directory 
         finalDir = (rotation_save_dir / getfilestructure(imdir))
         os.makedirs(finalDir,exist_ok=True)
 
@@ -203,8 +193,9 @@ if __name__ == '__main__':
         rotname = timestamp.strftime("%Y%m%d%H%M%S") + "_UTQ_" + name + ".jpg"
 
         cv2.imwrite(str(finalDir.parent/rotname),rot_img)
+
+        #creat csv of the stats
         row = [rotname,timestamp.strftime("%Y%m%d%H%M%S"),angle]
         writetocsv("UTQ_level_stats.csv",row)
         del rot_img
         
-        # plt.imsave("")
