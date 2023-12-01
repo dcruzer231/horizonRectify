@@ -11,7 +11,7 @@ from PIL import Image, ExifTags
 from datetime import datetime
 from tqdm import tqdm
 import re
-from blurtest import isBlurry
+from blurIndex import isBlurry
 import pandas as pd
 
 
