@@ -101,7 +101,7 @@ def writetocsv(filename,row):
         writer_object.writerow(row)
         f_object.close()
 
-def recityHorizon(img):
+def rectifyHorizon(img):
     #get only blue channel of the image
     blueimg = img[:,:,0]
     width,height = blueimg.shape[:]
@@ -160,18 +160,18 @@ if __name__ == '__main__':
     timeCorrection["datetime"] = timeCorrection["Date"] + " " + timeCorrection["Time"]
     
     timeCorrection["datetime"] = pd.to_datetime(timeCorrection["datetime"],format="%m/%d/%Y %I:%M %p")
+    #last line of the image before timestamp
+    imgend = 2299
+
+    #this values are the A and B coeffecients of y=Ax+B line for the golden standard image.
+    #goldB = 589.2652532259266
+    goldB = 582.3542738867756
+
+    #goldA = 0.006334331804510105
+    goldA = -0.047456609746488194
     
     
     for imdir in tqdm(input_img_paths):
-        #last line of the image before timestamp
-        imgend = 2299
-
-        #this values are the A and B coeffecients of y=Ax+B line for the golden standard image.
-        #goldB = 589.2652532259266
-        goldB = 582.3542738867756
-
-        #goldA = 0.006334331804510105
-        goldA = -0.047456609746488194
         try:
             
             name = Path(imdir).stem
@@ -187,7 +187,7 @@ if __name__ == '__main__':
             
             timestamp = getDateTime(str(imdir)) #timeCorrection.loc[timeCorrection['Image'] == name+".JPG"]["datetime"].item()
 
-            recityHorizon(img)                        
+            rectifyHorizon(img)                        
             
             #preserve folder structure of source directory 
             finalDir = (rotation_save_dir / timestamp.strftime("%Y")) #getfilestructure(imdir))
