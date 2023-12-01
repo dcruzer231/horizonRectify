@@ -10,14 +10,11 @@ from PIL import Image, ExifTags
 
 from datetime import datetime
 from tqdm import tqdm
+import re
+from blurtest import isBlurry
+import pandas as pd
 
-#last line of the image before timestamp
-imgend = 2299
-#goldB = 589.2652532259266
-goldB = 582.3542738867756
 
-#goldA = 0.006334331804510105
-goldA = -0.047456609746488194
 
 
 #inspired by method developed by Sean Sall origin: https://github.com/sallamander/horizon-detection/blob/master/utils.py
@@ -104,98 +101,111 @@ def writetocsv(filename,row):
         writer_object.writerow(row)
         f_object.close()
 
+def recityHorizon(img):
+    #get only blue channel of the image
+    blueimg = img[:,:,0]
+    width,height = blueimg.shape[:]
+    #broadcast the last line of image pixels down the empty timestamp square.  Pure black spaces may affect the thresholding. 
+    lastline = blueimg[imgend,:]
+    timestampmask = np.broadcast_to(lastline,(width-imgend,lastline.shape[0]))
+    blueimg[2299:,:] = timestampmask
+    
+    #x,y cordinates of set of evenly spaced points lying on the edge of the threshold and the binary thresholded image
+    x,y,climg = detect_horizon_line(blueimg)
+    del blueimg
+
+    #create a line of best fit on the points returns the a and b coefficient of the line formula y=ax+b
+    a, b = np.polyfit(x, y, 1)
+
+    liny = a*x+b
+    #plt.figure(i)        
+    #plt.plot(x,y,"bo")
+    #plt.plot(x,liny)
+
+    #Use slope to find the angle of the horizon
+    angle = np.arctan(a)*180/np.pi
+
+    #get matrix to rotate image
+    rot_matrix = getRotationMatrix(img,angle)
+    #get matrix to shift the image vertically
+    #vert_matrix = getVerticalShiftMatrix(img,a,b,goldA,goldB)
+    # matrix = vert_matrix * rot_matrix  
+
+
+    #warp image on rotation matrix and then vertical shift matrix
+    rot_img = warp(img, rot_matrix)
+    # rot_img = warp(rot_img, vert_matrix)
+    
+    return rot_img
+    
 
 if __name__ == '__main__':
     rotation_save_dir = Path(r"C:\Users\Daniel\Documents\sel\horizon_rotation_images\goldenStandardRotated_nostamp")
     #rotation_save_dir = Path(r"D:\ITEX-AON_Phenocam_Images\WingScapes_PhenoCam_2011-2015\Utqiagvik_MISP_PhenoCam\2014_2_rectified")
     #rotation_save_dir = Path(r"C:\Users\Daniel\Documents\sel\horizon_rotation_images\rectified_images_nostamp")
-    rotation_save_dir = Path(r"/media/dan/ITEX-AON PhenoCam Image MASTER/ITEX-AON_Phenocam_Images/WingScapes_PhenoCam_2011-2015/utqiagvik_MISP_PhenoCam_level/")
-
-    
-    green_save_dir = Path(r"C:\Users\Daniel\Documents\sel\horizon_rotation_images\green_channel")
-    horizon_save_dir = Path(r"C:\Users\Daniel\Documents\sel\horizon_rotation_images\horizon_detection")
+    rotation_save_dir = Path(r"/media/dan/dataBackup1/ITEX-AON_Phenocam_Images/WingScapes_PhenoCam_2011-2015/utqiagvik_MISP_PhenoCam_level/")
+    #rotation_save_dir = Path(r"/media/dan/ITEX-AON PhenoCam Image MASTER/ITEX-AON_Phenocam_Images/WingScapes_PhenoCam_2011-2015/utqiagvik_MISP_Phenocam_Futura_Rectified_All_Images_2_leveled/2011")
 
     #data_dir = Path(r"C:\Users\Daniel\Documents\sel\Example_Images_For_Rectification")
     data_dir = Path(r"C:\Users\Daniel\Documents\sel\horizon_rotation_images\goldenStandards")
     #data_dir = Path(r"D:\ITEX-AON_Phenocam_Images\WingScapes_PhenoCam_2011-2015\Utqiagvik_MISP_PhenoCam\2014_2")
-    data_dir = Path(r"/media/dan/ITEX-AON PhenoCam Image MASTER/ITEX-AON_Phenocam_Images/WingScapes_PhenoCam_2011-2015/Utqiagvik_MISP_PhenoCam/")
+    data_dir = Path(r"/media/dan/dataBackup1/ITEX-AON_Phenocam_Images/WingScapes_PhenoCam_2011-2015/Utqiagvik_MISP_PhenoCam/2015/")
+    #data_dir = Path(r"/media/dan/ITEX-AON PhenoCam Image MASTER/ITEX-AON_Phenocam_Images/WingScapes_PhenoCam_2011-2015/utqiagvik_MISP_PhenoCam_level/2011/Futura_Rectified_All_Images_2/")
 
     
     files = list(data_dir.glob("**/*"))
     input_img_paths = [x for x in files if (x.is_file() and "jpg" in x.suffix.lower()) ]
-
-
+    
+    timeCorrection = pd.read_csv("/home/dan/Downloads/2015_Wingscapes_Date_Time_Table.csv")
+    timeCorrection["datetime"] = timeCorrection["Date"] + " " + timeCorrection["Time"]
+    
+    timeCorrection["datetime"] = pd.to_datetime(timeCorrection["datetime"],format="%m/%d/%Y %I:%M %p")
     
     
-    i = 1
     for imdir in tqdm(input_img_paths):
-        name = Path(imdir).stem
-        img = cv2.imread(str(imdir))
+        #last line of the image before timestamp
+        imgend = 2299
 
-        #remove timestamp
-        img[2299:,...] = 0
-        
-        timestamp = getDateTime(str(imdir))
-        
-        #get only blue channel of the image
-        blueimg = img[:,:,0]
-        width,height = blueimg.shape[:]
+        #this values are the A and B coeffecients of y=Ax+B line for the golden standard image.
+        #goldB = 589.2652532259266
+        goldB = 582.3542738867756
 
-        #broadcast the last line of image pixels down the empty timestamp square.  Pure black spaces may affect the thresholding. 
-        lastline = blueimg[imgend,:]
-        timestampmask = np.broadcast_to(lastline,(width-imgend,lastline.shape[0]))
-        blueimg[2299:,:] = timestampmask
-        
-        #x,y cordinates of set of evenly spaced points lying on the edge of the threshold and the binary thresholded image
-        x,y,climg = detect_horizon_line(blueimg)
-        del blueimg
+        #goldA = 0.006334331804510105
+        goldA = -0.047456609746488194
+        try:
+            
+            name = Path(imdir).stem
+            img = cv2.imread(str(imdir))
+            
+            if img.shape[:2] != (2448, 3264):
+                img = cv2.resize(img, (3264,2448))
+                print("resizing")
+                
 
-        #create a line of best fit on the points returns the a and b coefficient of the line formula y=ax+b
-        a, b = np.polyfit(x, y, 1)
+            #remove timestamp
+            img[2299:,...] = 0
+            
+            timestamp = getDateTime(str(imdir)) #timeCorrection.loc[timeCorrection['Image'] == name+".JPG"]["datetime"].item()
 
-        liny = a*x+b
-        #plt.figure(i)        
-        #plt.plot(x,y,"bo")
-        #plt.plot(x,liny)
-
-        #Use slope to find the angle of the horizon
-        angle = np.arctan(a)*180/np.pi
-        
-        #plt.imshow(climg)
-        horzname = name + "_" + "horizon" + ".jpg"
-        # cv2.imwrite(str(horizon_save_dir/horzname),climg)
-        #plt.savefig(str(horizon_save_dir/horzname))
+            recityHorizon(img)                        
+            
+            #preserve folder structure of source directory 
+            finalDir = (rotation_save_dir / timestamp.strftime("%Y")) #getfilestructure(imdir))
+            os.makedirs(finalDir,exist_ok=True)
 
 
-        grnname = name + "_" + "green" + ".jpg"
-        #cv2.imwrite(str(green_save_dir/grnname),blueimg)
-        
-        #get matrix to rotate image
-        rot_matrix = getRotationMatrix(img,angle)
-        #get matrix to shift the image vertically
-        vert_matrix = getVerticalShiftMatrix(img,a,b,goldA,goldB)
-        # matrix = vert_matrix * rot_matrix  
+            rotname = timestamp.strftime("%Y%m%d%H%M%S") + "_UTQ_" + name + ".jpg"
+            rotname = re.sub("^2010","2011",rotname)
 
+            cv2.imwrite(str(finalDir/rotname),rot_img)
 
-        #warp image on rotation matrix and then vertical shift matrix
-        rot_img = warp(img, rot_matrix)
-        # rot_img = warp(rot_img, vert_matrix)
-        
-        #plt.figure(i+1)
-        # i+=2
-        #plt.imshow(rot_img)
-        
-        #preserve folder structure of source directory 
-        finalDir = (rotation_save_dir / getfilestructure(imdir))
-        os.makedirs(finalDir,exist_ok=True)
-
-
-        rotname = timestamp.strftime("%Y%m%d%H%M%S") + "_UTQ_" + name + ".jpg"
-
-        cv2.imwrite(str(finalDir.parent/rotname),rot_img)
-
-        #creat csv of the stats
-        row = [rotname,timestamp.strftime("%Y%m%d%H%M%S"),angle]
-        writetocsv("UTQ_level_stats.csv",row)
-        del rot_img
+            #creat csv of the stats
+            _,laplace = isBlurry(img,0)
+            row = [rotname,re.sub("^2010","2011",timestamp.strftime("%Y%m%d%H%M%S")),angle,laplace]
+            writetocsv("UTQ_level_2015_stats.csv",row)
+            del rot_img
+        except Exception as e:
+            print(e)
+            print("could not level",name)
+            print("source directory",imdir)
         
