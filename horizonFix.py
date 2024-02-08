@@ -136,30 +136,37 @@ def rectifyHorizon(img):
     rot_img = warp(img, rot_matrix)
     # rot_img = warp(rot_img, vert_matrix)
     
-    return rot_img
+    return rot_img,angle
     
+
+def getExif(imgpath):
+    im = Image.open(imgpath)
+    exif = im.info['exif']
+    del im
+    return exif
+    # im.save('P4072956_thumb.jpg', exif=exif)
 
 if __name__ == '__main__':
     rotation_save_dir = Path(r"C:\Users\Daniel\Documents\sel\horizon_rotation_images\goldenStandardRotated_nostamp")
     #rotation_save_dir = Path(r"D:\ITEX-AON_Phenocam_Images\WingScapes_PhenoCam_2011-2015\Utqiagvik_MISP_PhenoCam\2014_2_rectified")
-    #rotation_save_dir = Path(r"C:\Users\Daniel\Documents\sel\horizon_rotation_images\rectified_images_nostamp")
-    rotation_save_dir = Path(r"/media/dan/dataBackup1/ITEX-AON_Phenocam_Images/WingScapes_PhenoCam_2011-2015/utqiagvik_MISP_PhenoCam_level/")
+    rotation_save_dir = Path(r"C:\Users\Daniel\Documents\sel\horizon_rotation_images\rectified_images_exif_test")
+    # rotation_save_dir = Path(r"/media/dan/dataBackup1/ITEX-AON_Phenocam_Images/WingScapes_PhenoCam_2011-2015/utqiagvik_MISP_PhenoCam_level/")
     #rotation_save_dir = Path(r"/media/dan/ITEX-AON PhenoCam Image MASTER/ITEX-AON_Phenocam_Images/WingScapes_PhenoCam_2011-2015/utqiagvik_MISP_Phenocam_Futura_Rectified_All_Images_2_leveled/2011")
 
-    #data_dir = Path(r"C:\Users\Daniel\Documents\sel\Example_Images_For_Rectification")
-    data_dir = Path(r"C:\Users\Daniel\Documents\sel\horizon_rotation_images\goldenStandards")
+    data_dir = Path(r"C:\Users\Daniel\Documents\sel\Example_Images_For_Rectification")
+    # data_dir = Path(r"C:\Users\Daniel\Documents\sel\horizon_rotation_images\goldenStandards")
     #data_dir = Path(r"D:\ITEX-AON_Phenocam_Images\WingScapes_PhenoCam_2011-2015\Utqiagvik_MISP_PhenoCam\2014_2")
-    data_dir = Path(r"/media/dan/dataBackup1/ITEX-AON_Phenocam_Images/WingScapes_PhenoCam_2011-2015/Utqiagvik_MISP_PhenoCam/2015/")
+    # data_dir = Path(r"/media/dan/dataBackup1/ITEX-AON_Phenocam_Images/WingScapes_PhenoCam_2011-2015/Utqiagvik_MISP_PhenoCam/2015/")
     #data_dir = Path(r"/media/dan/ITEX-AON PhenoCam Image MASTER/ITEX-AON_Phenocam_Images/WingScapes_PhenoCam_2011-2015/utqiagvik_MISP_PhenoCam_level/2011/Futura_Rectified_All_Images_2/")
 
     
     files = list(data_dir.glob("**/*"))
     input_img_paths = [x for x in files if (x.is_file() and "jpg" in x.suffix.lower()) ]
     
-    timeCorrection = pd.read_csv("/home/dan/Downloads/2015_Wingscapes_Date_Time_Table.csv")
-    timeCorrection["datetime"] = timeCorrection["Date"] + " " + timeCorrection["Time"]
+    # timeCorrection = pd.read_csv("/home/dan/Downloads/2015_Wingscapes_Date_Time_Table.csv")
+    # timeCorrection["datetime"] = timeCorrection["Date"] + " " + timeCorrection["Time"]
     
-    timeCorrection["datetime"] = pd.to_datetime(timeCorrection["datetime"],format="%m/%d/%Y %I:%M %p")
+    # timeCorrection["datetime"] = pd.to_datetime(timeCorrection["datetime"],format="%m/%d/%Y %I:%M %p")
     #last line of the image before timestamp
     imgend = 2299
 
@@ -187,7 +194,7 @@ if __name__ == '__main__':
             
             timestamp = getDateTime(str(imdir)) #timeCorrection.loc[timeCorrection['Image'] == name+".JPG"]["datetime"].item()
 
-            rectifyHorizon(img)                        
+            rot_img,angle = rectifyHorizon(img)                        
             
             #preserve folder structure of source directory 
             finalDir = (rotation_save_dir / timestamp.strftime("%Y")) #getfilestructure(imdir))
@@ -197,7 +204,11 @@ if __name__ == '__main__':
             rotname = timestamp.strftime("%Y%m%d%H%M%S") + "_UTQ_" + name + ".jpg"
             rotname = re.sub("^2010","2011",rotname)
 
-            cv2.imwrite(str(finalDir/rotname),rot_img)
+            exif = getExif(imdir)
+
+            # cv2.imwrite(str(finalDir/rotname),rot_img)
+            im = Image.fromarray(rot_img[...,::-1])
+            im.save(str(finalDir/rotname), exif=exif)
 
             #creat csv of the stats
             _,laplace = isBlurry(img,0)
