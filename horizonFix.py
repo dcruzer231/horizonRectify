@@ -82,7 +82,7 @@ def getVerticalShiftMatrix(img,a,b,goldA,goldB):
 
     
 #retrieves data time from exif
-def getDateTime(imdir):
+def getDateTimeFromExif(imdir):
     pimg = Image.open(str(imdir))
     img_exif = pimg.getexif()
     #this is the code for datetime
@@ -101,7 +101,7 @@ def writetocsv(filename,row):
         writer_object.writerow(row)
         f_object.close()
 
-def rectifyHorizon(img):
+def rectifyHorizon(img,imgend = 2299):
     #get only blue channel of the image
     blueimg = img[:,:,0]
     width,height = blueimg.shape[:]
@@ -146,6 +146,27 @@ def getExif(imgpath):
     return exif
     # im.save('P4072956_thumb.jpg', exif=exif)
 
+#removes timestamp on image
+def removeImageTimestamp(img, cutoff = 2299):
+    img[cutoff:,...] = 0
+    return img
+
+#builds a string with attributes joined by '_' for use with file names
+def buildName(attributes, suffix):
+    return "_".join(attributes) + suffix
+
+
+def saveImg(img,fname,keepExif=True):
+
+    #converts to Image type and flips colour channels
+    im = Image.fromarray(img[...,::-1])
+    if keepExif:
+        exif = getExif(imdir)
+        im.save(fname, exif=exif)
+    else:
+        im.save(fname)
+
+
 if __name__ == '__main__':
     rotation_save_dir = Path(r"C:\Users\Daniel\Documents\sel\horizon_rotation_images\goldenStandardRotated_nostamp")
     #rotation_save_dir = Path(r"D:\ITEX-AON_Phenocam_Images\WingScapes_PhenoCam_2011-2015\Utqiagvik_MISP_PhenoCam\2014_2_rectified")
@@ -168,7 +189,7 @@ if __name__ == '__main__':
     
     # timeCorrection["datetime"] = pd.to_datetime(timeCorrection["datetime"],format="%m/%d/%Y %I:%M %p")
     #last line of the image before timestamp
-    imgend = 2299
+    
 
     #this values are the A and B coeffecients of y=Ax+B line for the golden standard image.
     #goldB = 589.2652532259266
@@ -189,31 +210,33 @@ if __name__ == '__main__':
                 print("resizing")
                 
 
-            #remove timestamp
-            img[2299:,...] = 0
+            #remove timestamp from image itself
+            img = removeImageTimestamp(img)
             
-            timestamp = getDateTime(str(imdir)) #timeCorrection.loc[timeCorrection['Image'] == name+".JPG"]["datetime"].item()
+            #get timestamp from exif
+            timestamp = getDateTimeFromExif(str(imdir)) #timeCorrection.loc[timeCorrection['Image'] == name+".JPG"]["datetime"].item()
 
             rot_img,angle = rectifyHorizon(img)                        
             
-            #preserve folder structure of source directory 
+            #Store image seperated by year
             finalDir = (rotation_save_dir / timestamp.strftime("%Y")) #getfilestructure(imdir))
             os.makedirs(finalDir,exist_ok=True)
 
 
-            rotname = timestamp.strftime("%Y%m%d%H%M%S") + "_UTQ_" + name + ".jpg"
+            rotname = buildName([timestamp.strftime("%Y%m%d%H%M%S"), "UTQ", name, "leveled"], ".jpg")
             rotname = re.sub("^2010","2011",rotname)
 
-            exif = getExif(imdir)
 
-            # cv2.imwrite(str(finalDir/rotname),rot_img)
-            im = Image.fromarray(rot_img[...,::-1])
-            im.save(str(finalDir/rotname), exif=exif)
+
+
+            saveImg(rot_img,str(finalDir/rotname))
 
             #creat csv of the stats
             _,laplace = isBlurry(img,0)
             row = [rotname,re.sub("^2010","2011",timestamp.strftime("%Y%m%d%H%M%S")),angle,laplace]
-            writetocsv("UTQ_level_2015_stats.csv",row)
+
+            csvName = buildName(["UTQ","level","2015","stats"],".csv")
+            writetocsv(csvName,row)
             del rot_img
         except Exception as e:
             print(e)
