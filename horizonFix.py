@@ -94,6 +94,7 @@ def getDateTimeFromExif(imdir):
 def getfilestructure(path):
     return str(path.parent).replace(str(data_dir),"")[1:] #indexing to remove starting /
 
+#writes a single row to a csv file, row is expected to be a list
 def writetocsv(filename,row):
     import csv
     with open(filename, '+a') as f_object:
@@ -101,6 +102,7 @@ def writetocsv(filename,row):
         writer_object.writerow(row)
         f_object.close()
 
+#returns the image rotated to level the horizon and the angle of rotation
 def rectifyHorizon(img,imgend = 2299):
     #get only blue channel of the image
     blueimg = img[:,:,0]
@@ -108,7 +110,7 @@ def rectifyHorizon(img,imgend = 2299):
     #broadcast the last line of image pixels down the empty timestamp square.  Pure black spaces may affect the thresholding. 
     lastline = blueimg[imgend,:]
     timestampmask = np.broadcast_to(lastline,(width-imgend,lastline.shape[0]))
-    blueimg[2299:,:] = timestampmask
+    blueimg[imgend:,:] = timestampmask
     
     #x,y cordinates of set of evenly spaced points lying on the edge of the threshold and the binary thresholded image
     x,y,climg = detect_horizon_line(blueimg)
@@ -129,7 +131,6 @@ def rectifyHorizon(img,imgend = 2299):
     rot_matrix = getRotationMatrix(img,angle)
     #get matrix to shift the image vertically
     #vert_matrix = getVerticalShiftMatrix(img,a,b,goldA,goldB)
-    # matrix = vert_matrix * rot_matrix  
 
 
     #warp image on rotation matrix and then vertical shift matrix
@@ -138,15 +139,14 @@ def rectifyHorizon(img,imgend = 2299):
     
     return rot_img,angle
     
-
+#Get exif data from image
 def getExif(imgpath):
     im = Image.open(imgpath)
     exif = im.info['exif']
     del im
     return exif
-    # im.save('P4072956_thumb.jpg', exif=exif)
 
-#removes timestamp on image
+#removes timestamp on image (usefule for wingscape images)
 def removeImageTimestamp(img, cutoff = 2299):
     img[cutoff:,...] = 0
     return img
@@ -155,7 +155,7 @@ def removeImageTimestamp(img, cutoff = 2299):
 def buildName(attributes, suffix):
     return "_".join(attributes) + suffix
 
-
+#saves image by converting cv2 image to PIL Image object
 def saveImg(img,fname,keepExif=True):
 
     #converts to Image type and flips colour channels
@@ -182,7 +182,7 @@ if __name__ == '__main__':
 
     
     files = list(data_dir.glob("**/*"))
-    input_img_paths = [x for x in files if (x.is_file() and "jpg" in x.suffix.lower()) ]
+    input_img_paths = [x for x in files if (x.is_file() and ("jpg" in x.suffix.lower() or "jpeg" in x.suffix.lower() or "png" in x.suffix.lower())) ]
     
     # timeCorrection = pd.read_csv("/home/dan/Downloads/2015_Wingscapes_Date_Time_Table.csv")
     # timeCorrection["datetime"] = timeCorrection["Date"] + " " + timeCorrection["Time"]
@@ -198,6 +198,7 @@ if __name__ == '__main__':
     #goldA = 0.006334331804510105
     goldA = -0.047456609746488194
     
+    tag = "UTQ"
     
     for imdir in tqdm(input_img_paths):
         try:
@@ -214,18 +215,28 @@ if __name__ == '__main__':
             img = removeImageTimestamp(img)
             
             #get timestamp from exif
-            timestamp = getDateTimeFromExif(str(imdir)) #timeCorrection.loc[timeCorrection['Image'] == name+".JPG"]["datetime"].item()
+            datetime = getDateTimeFromExif(str(imdir)) #timeCorrection.loc[timeCorrection['Image'] == name+".JPG"]["datetime"].item()
+
+            timestamp = datetime.strftime("%Y%m%d%H%M%S")
+            year = timestamp.strftime("%Y")
+
+            # required for old wingscape cameras
+            # timestamp = re.sub("^2010","2011",timestamp)
+            # year = re.sub("^2010","2011",year)
+
 
             rot_img,angle = rectifyHorizon(img)                        
             
             #Store image seperated by year
-            finalDir = (rotation_save_dir / timestamp.strftime("%Y")) #getfilestructure(imdir))
+            finalDir = (rotation_save_dir / year) #getfilestructure(imdir))
             os.makedirs(finalDir,exist_ok=True)
 
 
-            rotname = buildName([timestamp.strftime("%Y%m%d%H%M%S"), "UTQ", name, "leveled"], ".jpg")
-            rotname = re.sub("^2010","2011",rotname)
 
+
+            rotname = buildName([timestamp, tag, name, "leveled"], ".jpg")
+
+            rotname = re.sub("^2010","2011",rotname)
 
 
 
@@ -233,9 +244,9 @@ if __name__ == '__main__':
 
             #creat csv of the stats
             _,laplace = isBlurry(img,0)
-            row = [rotname,re.sub("^2010","2011",timestamp.strftime("%Y%m%d%H%M%S")),angle,laplace]
+            row = [rotname,timestamp,angle,laplace]
 
-            csvName = buildName(["UTQ","level","2015","stats"],".csv")
+            csvName = buildName([tag,"level","2015","stats"],".csv")
             writetocsv(csvName,row)
             del rot_img
         except Exception as e:
