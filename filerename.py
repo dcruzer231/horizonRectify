@@ -12,6 +12,7 @@ from PIL import Image, ExifTags
 from datetime import datetime
 from tqdm import tqdm
 import shutil
+import re
 
 #last line of the image before timestamp
 imgend = 2299
@@ -98,7 +99,7 @@ def getDateTime(imdir):
 
 if __name__ == '__main__':
     rotation_save_dir = Path(r"C:\Users\Daniel\Documents\sel\horizon_rotation_images\goldenStandardRotated_nostamp")
-    rotation_save_dir = Path(r"/media/dan/ITEX-AON PhenoCam Image MASTER/ITEX-AON_Phenocam_Images/WingScapes_PhenoCam_2011-2015/utqiagvik_MISP_PhenoCam_no_timestamp/")
+    rotation_save_dir = Path(r"/media/dan/dataBackup1/ITEX-AON_Phenocam_Images/WingScapes_PhenoCam_2011-2015/Atqasuk_MISP_PhenoCam_no_timestamp/2013")
     #rotation_save_dir = Path(r"C:\Users\Daniel\Documents\sel\horizon_rotation_images\rectified_images_nostamp")
     
     green_save_dir = Path(r"C:\Users\Daniel\Documents\sel\horizon_rotation_images\green_channel")
@@ -107,7 +108,7 @@ if __name__ == '__main__':
     #data_dir = Path(r"C:\Users\Daniel\Documents\sel\Example_Images_For_Rectification")
     # data_dir = Path(r"C:\Users\Daniel\Documents\sel\horizon_rotation_images\goldenStandards")
     #data_dir = Path(r"D:\ITEX-AON_Phenocam_Images\WingScapes_PhenoCam_2011-2015\Utqiagvik_MISP_PhenoCam\2014_2")
-    data_dir = Path(r"/media/dan/ITEX-AON PhenoCam Image MASTER/ITEX-AON_Phenocam_Images/WingScapes_PhenoCam_2011-2015/Utqiagvik_MISP_PhenoCam/")
+    data_dir = Path(r"/media/dan/dataBackup1/ITEX-AON_Phenocam_Images/WingScapes_PhenoCam_2011-2015/Atqasuk_MISP_PhenoCam/2013")
 
 
     # input_img_paths = sorted(
@@ -126,41 +127,49 @@ if __name__ == '__main__':
     
     i = 1
     for imdir in tqdm(input_img_paths):
-        # img = cv2.imread(r"C:\Users\Daniel\Documents\sel\Example_Images_For_Rectification\WSBC0029.JPG",cv2.IMREAD_GRAYSCALE)
-        #img = cv2.imread(imdir,cv2.IMREAD_GRAYSCALE)
-        name = Path(imdir).stem
-        img = cv2.imread(str(imdir))
-        #remove timestamp
-        img[2299:,...] = 0
-        
-        timestamp = getDateTime(str(imdir))
-        
-        grnimg = img[:,:,0]
-        width,height = grnimg.shape[:]
+        try:
 
-        
-        lastline = grnimg[imgend,:]
-        timestampmask = np.broadcast_to(lastline,(width-imgend,lastline.shape[0]))
-        grnimg[2299:,:] = timestampmask
-        
-
-        #plt.figure(i)
-        
-        #plt.plot(x,y,"bo")
-        #plt.plot(x,liny)
-
-        #angle = np.arctan((max(liny)-min(liny))/max(x))*180/np.pi#np.arctan(-a)*2*np.pi
-        #print("angle",angle)
-        
-        #plt.imshow(climg)
-        # cv2.imwrite(str(horizon_save_dir/horzname),climg)
-        #plt.savefig(str(horizon_save_dir/horzname))
-
-        
-        newname = timestamp.strftime("%Y%m%d%H%M%S") + "_UTQ_" + name + ".jpg"
-        #shutil.copy2(imdir,rotation_save_dir/newname)
-        finalDir = rotation_save_dir / getfilestructure(imdir)
-        os.makedirs(finalDir,exist_ok=True)
-        cv2.imwrite(str(finalDir/newname),img)
-        
-        # plt.imsave("")
+            # img = cv2.imread(r"C:\Users\Daniel\Documents\sel\Example_Images_For_Rectification\WSBC0029.JPG",cv2.IMREAD_GRAYSCALE)
+            #img = cv2.imread(imdir,cv2.IMREAD_GRAYSCALE)
+            name = Path(imdir).stem
+            img = cv2.imread(str(imdir))
+            if img.shape[:2] != (2448, 3264):
+                img = cv2.resize(img, (3264,2448))
+            
+            #remove timestamp
+            img[2299:,...] = 0
+            
+            timestamp = getDateTime(str(imdir))
+            
+            grnimg = img[:,:,0]
+            width,height = grnimg.shape[:]
+    
+            
+            lastline = grnimg[imgend,:]
+            timestampmask = np.broadcast_to(lastline,(width-imgend,lastline.shape[0]))
+            grnimg[2299:,:] = timestampmask
+            
+    
+            #plt.figure(i)
+            
+            #plt.plot(x,y,"bo")
+            #plt.plot(x,liny)
+    
+            #angle = np.arctan((max(liny)-min(liny))/max(x))*180/np.pi#np.arctan(-a)*2*np.pi
+            #print("angle",angle)
+            
+            #plt.imshow(climg)
+            # cv2.imwrite(str(horizon_save_dir/horzname),climg)
+            #plt.savefig(str(horizon_save_dir/horzname))
+    
+            
+            newname = timestamp.strftime("%Y%m%d%H%M%S") + "_ATQ_" + name + ".jpg"
+            newname = re.sub("^2010","2011",newname)
+            #shutil.copy2(imdir,rotation_save_dir/newname)
+            finalDir = rotation_save_dir / getfilestructure(imdir)
+            os.makedirs(finalDir,exist_ok=True)
+            cv2.imwrite(str(finalDir/newname),img)
+            
+            # plt.imsave("")
+        except Exception as e:
+            print("cannot save image",name)
