@@ -166,15 +166,22 @@ def saveImg(img,fname,keepExif=True):
     else:
         im.save(fname)
 
+#Reads the format of a time table for timestamp corrections
+def readTimeTable(fname):
+    timeCorrection = pd.read_csv(fname)
+    timeCorrection["datetime"] = timeCorrection["Date"] + " " + timeCorrection["Time"]
+    
+    timeCorrection["datetime"] = pd.to_datetime(timeCorrection["datetime"],format="%m/%d/%Y %I:%M %p")
+    return timeCorrection
 
 if __name__ == '__main__':
-    rotation_save_dir = Path(r"C:\Users\Daniel\Documents\sel\horizon_rotation_images\goldenStandardRotated_nostamp")
+    # rotation_save_dir = Path(r"C:\Users\Daniel\Documents\sel\horizon_rotation_images\goldenStandardRotated_nostamp")
     #rotation_save_dir = Path(r"D:\ITEX-AON_Phenocam_Images\WingScapes_PhenoCam_2011-2015\Utqiagvik_MISP_PhenoCam\2014_2_rectified")
-    rotation_save_dir = Path(r"C:\Users\Daniel\Documents\sel\horizon_rotation_images\rectified_images_exif_test")
-    # rotation_save_dir = Path(r"/media/dan/dataBackup1/ITEX-AON_Phenocam_Images/WingScapes_PhenoCam_2011-2015/utqiagvik_MISP_PhenoCam_level/")
+    # rotation_save_dir = Path(r"C:\Users\Daniel\Documents\sel\horizon_rotation_images\rectified_images_exif_test")
+    rotation_save_dir = Path(r"/mnt/databackup/ITEX-AON_Phenocam_Images/WingScapes_PhenoCam_2011-2015/utqiagvik_MISP_PhenoCam_blurs/")
     #rotation_save_dir = Path(r"/media/dan/ITEX-AON PhenoCam Image MASTER/ITEX-AON_Phenocam_Images/WingScapes_PhenoCam_2011-2015/utqiagvik_MISP_Phenocam_Futura_Rectified_All_Images_2_leveled/2011")
 
-    data_dir = Path(r"C:\Users\Daniel\Documents\sel\Example_Images_For_Rectification")
+    data_dir = Path(r"/mnt/databackup/ITEX-AON_Phenocam_Images/WingScapes_PhenoCam_2011-2015/Utqiagvik_MISP_PhenoCam/New_2014_Images_231121/")
     # data_dir = Path(r"C:\Users\Daniel\Documents\sel\horizon_rotation_images\goldenStandards")
     #data_dir = Path(r"D:\ITEX-AON_Phenocam_Images\WingScapes_PhenoCam_2011-2015\Utqiagvik_MISP_PhenoCam\2014_2")
     # data_dir = Path(r"/media/dan/dataBackup1/ITEX-AON_Phenocam_Images/WingScapes_PhenoCam_2011-2015/Utqiagvik_MISP_PhenoCam/2015/")
@@ -184,11 +191,8 @@ if __name__ == '__main__':
     files = list(data_dir.glob("**/*"))
     input_img_paths = [x for x in files if (x.is_file() and ("jpg" in x.suffix.lower() or "jpeg" in x.suffix.lower() or "png" in x.suffix.lower())) ]
     
-    # timeCorrection = pd.read_csv("/home/dan/Downloads/2015_Wingscapes_Date_Time_Table.csv")
-    # timeCorrection["datetime"] = timeCorrection["Date"] + " " + timeCorrection["Time"]
-    
-    # timeCorrection["datetime"] = pd.to_datetime(timeCorrection["datetime"],format="%m/%d/%Y %I:%M %p")
-    #last line of the image before timestamp
+    timeCorrection = None
+    # timeCorrection = readTimeTable("/home/dan/Downloads/2015_Wingscapes_Date_Time_Table.csv")
     
 
     #this values are the A and B coeffecients of y=Ax+B line for the golden standard image.
@@ -202,7 +206,9 @@ if __name__ == '__main__':
     
     for imdir in tqdm(input_img_paths):
         try:
-            
+            #full file name with suffix
+            fullName = Path(imdir).name
+            #name without suffix
             name = Path(imdir).stem
             img = cv2.imread(str(imdir))
             
@@ -214,11 +220,15 @@ if __name__ == '__main__':
             #remove timestamp from image itself
             img = removeImageTimestamp(img)
             
-            #get timestamp from exif
-            datetime = getDateTimeFromExif(str(imdir)) #timeCorrection.loc[timeCorrection['Image'] == name+".JPG"]["datetime"].item()
+            #get timestamp from exif or datetable if it is from 2015 table
+            if timeCorrection is not None  and Path(imdir).parts[-2] == "2015" and timeCorrection['Image'].str.contains(fullName).any():
+                datetime = timeCorrection.loc[timeCorrection['Image'] == fullName]["datetime"].item()
+            else:
+                datetime = getDateTimeFromExif(str(imdir)) 
+
+            year = datetime.strftime("%Y")
 
             timestamp = datetime.strftime("%Y%m%d%H%M%S")
-            year = timestamp.strftime("%Y")
 
             # required for old wingscape cameras
             # timestamp = re.sub("^2010","2011",timestamp)
@@ -242,12 +252,12 @@ if __name__ == '__main__':
 
             saveImg(rot_img,str(finalDir/rotname))
 
-            #creat csv of the stats
+            #create csv of the stats
             _,laplace = isBlurry(img,0)
             row = [rotname,timestamp,angle,laplace]
 
-            csvName = buildName([tag,"level","2015","stats"],".csv")
-            writetocsv(csvName,row)
+            csvName = buildName([tag,"level",year,"stats"],".csv")
+            writetocsv(finalDir/csvName,row)
             del rot_img
         except Exception as e:
             print(e)
