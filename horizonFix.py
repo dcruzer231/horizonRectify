@@ -90,13 +90,31 @@ def getDateTimeFromExif(imdir):
     timestamp = datetime.strptime(strdatetime,"%Y:%m:%d %H:%M:%S")
     return timestamp
 
+#retrieves date time for phenocam names
+def getDateTimeFromName(name):
+    parts = name.split("_")
+    strdatetime = "_".join(parts[1:3])
+
+    #check for timezone
+    if "-" in strdatetime or "+" in strdatetime:
+        timestamp = datetime.strptime(strdatetime,"%Y%m%d_%H%M%S%z")
+    else:
+        timestamp = datetime.strptime(strdatetime,"%Y%m%d_%H%M%S")
+    return timestamp
+
+
 #returns directory structure with parent directories removed
 def getfilestructure(path):
     return str(path.parent).replace(str(data_dir),"")[1:] #indexing to remove starting /
 
 #writes a single row to a csv file, row is expected to be a list
-def writetocsv(filename,row):
+def writetocsv(filename,row,title):
     import csv
+    if not filename.is_file(): #write title if file is new
+        with open(filename, '+a') as f_object:
+            writer_object = csv.writer(f_object)
+            writer_object.writerow(title)
+            f_object.close()
     with open(filename, '+a') as f_object:
         writer_object = csv.writer(f_object)
         writer_object.writerow(row)
@@ -156,12 +174,12 @@ def buildName(attributes, suffix):
     return "_".join(attributes) + suffix
 
 #saves image by converting cv2 image to PIL Image object
-def saveImg(img,fname,keepExif=True):
+def saveImg(img,fname,source,keepExif=True):
 
     #converts to Image type and flips colour channels
     im = Image.fromarray(img[...,::-1])
     if keepExif:
-        exif = getExif(imdir)
+        exif = getExif(source)
         im.save(fname, exif=exif)
     else:
         im.save(fname)
@@ -178,10 +196,10 @@ if __name__ == '__main__':
     # rotation_save_dir = Path(r"C:\Users\Daniel\Documents\sel\horizon_rotation_images\goldenStandardRotated_nostamp")
     #rotation_save_dir = Path(r"D:\ITEX-AON_Phenocam_Images\WingScapes_PhenoCam_2011-2015\Utqiagvik_MISP_PhenoCam\2014_2_rectified")
     # rotation_save_dir = Path(r"C:\Users\Daniel\Documents\sel\horizon_rotation_images\rectified_images_exif_test")
-    rotation_save_dir = Path(r"/mnt/databackup/ITEX-AON_Phenocam_Images/WingScapes_PhenoCam_2011-2015/utqiagvik_MISP_PhenoCam_blurs/")
+    rotation_save_dir = Path(r"/mnt/databackup/ITEX-AON_Phenocam_Images/WingScapes_PhenoCam_2011-2015/Atqasuk_MISP_PhenoCam_blurs/")
     #rotation_save_dir = Path(r"/media/dan/ITEX-AON PhenoCam Image MASTER/ITEX-AON_Phenocam_Images/WingScapes_PhenoCam_2011-2015/utqiagvik_MISP_Phenocam_Futura_Rectified_All_Images_2_leveled/2011")
 
-    data_dir = Path(r"/mnt/databackup/ITEX-AON_Phenocam_Images/WingScapes_PhenoCam_2011-2015/Utqiagvik_MISP_PhenoCam/New_2014_Images_231121/")
+    data_dir = Path(r"/mnt/databackup/ITEX-AON_Phenocam_Images/WingScapes_PhenoCam_2011-2015/Atqasuk_MISP_PhenoCam")
     # data_dir = Path(r"C:\Users\Daniel\Documents\sel\horizon_rotation_images\goldenStandards")
     #data_dir = Path(r"D:\ITEX-AON_Phenocam_Images\WingScapes_PhenoCam_2011-2015\Utqiagvik_MISP_PhenoCam\2014_2")
     # data_dir = Path(r"/media/dan/dataBackup1/ITEX-AON_Phenocam_Images/WingScapes_PhenoCam_2011-2015/Utqiagvik_MISP_PhenoCam/2015/")
@@ -202,7 +220,7 @@ if __name__ == '__main__':
     #goldA = 0.006334331804510105
     goldA = -0.047456609746488194
     
-    tag = "UTQ"
+    siteID = "ATQ"
     
     for imdir in tqdm(input_img_paths):
         try:
@@ -244,20 +262,20 @@ if __name__ == '__main__':
 
 
 
-            rotname = buildName([timestamp, tag, name, "leveled"], ".jpg")
+            rotname = buildName([timestamp, siteID, name, "leveled"], ".jpg")
 
             rotname = re.sub("^2010","2011",rotname)
 
 
 
-            saveImg(rot_img,str(finalDir/rotname))
+            saveImg(rot_img,str(finalDir/rotname),imdir)
 
             #create csv of the stats
             _,laplace = isBlurry(img,0)
             row = [rotname,timestamp,angle,laplace]
 
-            csvName = buildName([tag,"level",year,"stats"],".csv")
-            writetocsv(finalDir/csvName,row)
+            csvName = buildName([siteID,"level",year,"stats"],".csv")
+            writetocsv(finalDir/csvName,row,title=["filename","timestamp","horizonAngle","laplacianVariance"])
             del rot_img
         except Exception as e:
             print(e)
