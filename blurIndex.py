@@ -3,7 +3,6 @@ import cv2
 import numpy as np
 from pathlib import Path
 
-
 def variance_of_laplacian(image):
     # compute the Laplacian of the image and then return the focus
     # measure, which is simply the variance of the Laplacian
@@ -16,6 +15,31 @@ def isBlurry(img,threshhold):
         return False,fm
     else:
         return True,fm
+
+#checks the laplacian variance only at the horizon
+#buffer is how far from the horizon line to make the mask
+def horizonBlur(img,buffer = 100,imgend = 2299):
+    from horizonFix import detect_horizon_line
+
+    blueimg = img[:,:,0]
+    width,height = blueimg.shape[:]
+    #broadcast the last line of image pixels down the empty timestamp square.  Pure black spaces may affect the thresholding. 
+    lastline = blueimg[imgend,:]
+    timestampmask = np.broadcast_to(lastline,(width-imgend,lastline.shape[0]))
+    blueimg[imgend:,:] = timestampmask
+
+    #x,y cordinates of set of evenly spaced points lying on the edge of the threshold and the binary thresholded image
+    x,y,climg = detect_horizon_line(blueimg)
+
+    liny_lower =  np.min(y) - buffer
+    liny_upper =  np.max(y) + buffer
+    imhor = img[liny_lower:liny_upper,:,:]
+
+    _,laplace = isBlurry(imhor,100)
+    #free up memory
+    del blueimg
+    del imhor
+    return laplace
 
 
 if __name__ == '__main__':
