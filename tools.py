@@ -30,9 +30,7 @@ def detect_horizon_line(image_grayscaled):
     :param image_grayscaled: grayscaled image to detect the horizon on, of
      shape (height, width)
     :type image_grayscale: np.ndarray of dtype uint8
-    :return: the (x1, x2, y1, y2) coordinates for the starting and ending
      points of the detected horizon line
-    :rtype: tuple(int)
     """
 
     msg = ('`image_grayscaled` should be a grayscale, 2-dimensional image '
@@ -110,7 +108,7 @@ def getDateTimeFromName(name):
 def getfilestructure(path):
     return str(path.parent).replace(str(data_dir),"")[1:] #indexing to remove starting /
 
-#writes a single row to a csv file, row is expected to be a list
+#writes a single row to a csv file, row and title are expected to be a list
 def writetocsv(filename,row,title):
     import csv
     if not filename.is_file(): #write title if file is new
@@ -125,7 +123,7 @@ def writetocsv(filename,row,title):
 
 #returns the image rotated to level the horizon and the angle of rotation
 def rectifyHorizon(img,imgend = None):
-    #get only blue channel of the image
+    #get only blue channel of the image.  CV imports images as colour order bgr
     blueimg = img[:,:,0]
     width,height = blueimg.shape[:]
     #broadcast the last line of image pixels down the empty timestamp square.  Pure black spaces may affect the thresholding. 
@@ -168,7 +166,7 @@ def getExif(imgpath):
     del im
     return exif
 
-#removes timestamp on image (usefule for wingscape images)
+#removes timestamp on image (useful for wingscape images)
 def removeImageTimestamp(img, cutoff = 2299):
     img[cutoff:,...] = 0
     return img
@@ -180,7 +178,7 @@ def buildName(attributes, suffix):
 #saves image by converting cv2 image to PIL Image object
 def saveImg(img,fname,source,keepExif=True):
 
-    #converts to Image type and flips colour channels
+    #converts to Image type and flips colour channels for saving with PIL
     im = Image.fromarray(img[...,::-1])
     if keepExif:
         exif = getExif(source)
@@ -193,6 +191,7 @@ def variance_of_laplacian(image):
     # measure, which is simply the variance of the Laplacian
     return cv2.Laplacian(image, cv2.CV_64F).var()
 
+#uses variance of laplace to calculate a blurry index
 def isBlurry(img,threshhold):
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     fm = variance_of_laplacian(gray)        
