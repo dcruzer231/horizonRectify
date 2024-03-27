@@ -3,7 +3,7 @@ This program is used to fix the rotation of IR pictures by comparing it to the n
 """
 
 import pandas as pd
-from horizonFix import *
+from tools import *
 from pathlib import Path
 import cv2
 from tqdm import tqdm
@@ -51,9 +51,9 @@ if __name__ == '__main__':
         if pd.isna(angle):
             rotname = buildName([tag, name, "notleveled"], ".jpg")
             saveImg(img,str(finalDir/rotname),imgPath)
-            row = [rotname,timestamp,None,laplace]
+            row = [rotname,timestamp,None,laplace,None]
             csvName = buildName([tag,"level", serial, imgType, year,"stats","RGBAligned"],".csv")
-            writetocsv(finalDir/csvName,row,title=["filename","timestamp","horizonAngle","laplacianVariance"])
+            writetocsv(finalDir/csvName,row,title=["filename","timestamp","horizonAngle","laplacianVariance","laplacianVarianceHorizon"])
 
         rot_matrix = getRotationMatrix(img,angle)
         rot_img = warp(img, rot_matrix)
@@ -63,5 +63,5 @@ if __name__ == '__main__':
 
         row = [rotname,timestamp,angle,laplace]
         csvName = buildName([tag,"level", serial, imgType, year,"stats","RGBAligned"],".csv")
-        writetocsv(finalDir/csvName,row,title=["filename","timestamp","horizonAngle","laplacianVariance"])
+        writetocsv(finalDir/csvName,row,title=["filename","timestamp","horizonAngle","laplacianVariance","laplacianVarianceHorizon"])
 
