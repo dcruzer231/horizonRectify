@@ -1,3 +1,7 @@
+"""
+Script to horizon rectify and calculate blur on phenocam images
+"""
+
 
 import cv2
 
@@ -35,12 +39,6 @@ if __name__ == '__main__':
     # timeCorrection = readTimeTable("/home/dan/Downloads/2015_Wingscapes_Date_Time_Table.csv")
     
 
-    #this values are the A and B coeffecients of y=Ax+B line for the golden standard image.
-    #goldB = 589.2652532259266
-    goldB = 582.3542738867756
-
-    #goldA = 0.006334331804510105
-    goldA = -0.047456609746488194
     
     siteID = "UTQ"
     
@@ -60,16 +58,9 @@ if __name__ == '__main__':
                     serial = part
                 if "rgb" or "ir" in part.lower():
                     imgType = part
-            
-            # if img.shape[:2] != (2448, 3264):
-                # img = cv2.resize(img, (3264,2448))
-                # print("resizing")
                 
-
-            #remove timestamp from image itself
-            # img = removeImageTimestamp(img)
             
-            #get timestamp from exif or datetable if it is from 2015 table
+            #get timestamp from exif or datetable if it is from 2015 wingscape table
             if timeCorrection is not None  and Path(imdir).parts[-2] == "2015" and timeCorrection['Image'].str.contains(fullName).any():
                 datetime = timeCorrection.loc[timeCorrection['Image'] == fullName]["datetime"].item()
             else:
@@ -79,16 +70,12 @@ if __name__ == '__main__':
 
             timestamp = datetime.strftime("%Y%m%d%H%M%S")
 
-            # required for old wingscape cameras
-            # timestamp = re.sub("^2010","2011",timestamp)
-            # year = re.sub("^2010","2011",year)
-
             #create csv of the stats
             _,laplace = isBlurry(img,0)
 
 
             #Store image seperated by year
-            finalDir = (rotation_save_dir / year / serial / imgType) #getfilestructure(imdir))
+            finalDir = (rotation_save_dir / year / serial / imgType)
             os.makedirs(finalDir,exist_ok=True)
 
 

@@ -1,3 +1,6 @@
+"""
+Script to horizon rectify and calculate blur on wingscape images
+"""
 
 import cv2
 
@@ -32,13 +35,6 @@ if __name__ == '__main__':
     timeCorrection = None
     # timeCorrection = readTimeTable("/home/dan/Downloads/2015_Wingscapes_Date_Time_Table.csv")
     
-
-    #this values are the A and B coeffecients of y=Ax+B line for the golden standard image.
-    #goldB = 589.2652532259266
-    goldB = 582.3542738867756
-
-    #goldA = 0.006334331804510105
-    goldA = -0.047456609746488194
     
     siteID = "UTQ"
     
@@ -68,15 +64,10 @@ if __name__ == '__main__':
 
             timestamp = datetime.strftime("%Y%m%d%H%M%S")
 
-            # required for old wingscape cameras
-            # timestamp = re.sub("^2010","2011",timestamp)
-            # year = re.sub("^2010","2011",year)
-
-
             rot_img,angle = rectifyHorizon(img,imgend = 2299)                        
             
             #Store image seperated by year
-            finalDir = (rotation_save_dir / year) #getfilestructure(imdir))
+            finalDir = (rotation_save_dir / year)
             os.makedirs(finalDir,exist_ok=True)
 
 
@@ -92,10 +83,8 @@ if __name__ == '__main__':
 
             #create csv of the stats
             _,laplace = isBlurry(img,0)
-            # try:
+            
             horilaplace = horizonBlur(img,imgend = 2299)
-            # except Exception as e:
-                # raise e
 
             row = [rotname,timestamp,angle,laplace, horilaplace]
 
